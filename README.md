@@ -1,18 +1,56 @@
 # Task Manager
 
-A Next.js application for managing tasks with Supabase as the database.
+A modern web-based task manager application built with Next.js, TypeScript, and Supabase.
+
+## Live Demo
+
+The application is available online at [https://pl-crud.vercel.app/](https://pl-crud.vercel.app/)
 
 ## Features
 
-- Create, read, update, and delete tasks
-- Filter and sort tasks
-- Task statistics
-- Import and export tasks
+### Core Requirements ✅
+- **Create, Read, Update, Delete (CRUD) Tasks**
+  - Create new tasks with title, description, due date, priority, and status
+  - View a list of all tasks
+  - Edit existing tasks
+  - Delete individual tasks or all tasks at once
 
-## Setup
+- **Task Properties**
+  - Title: Short string
+  - Description: Longer text field
+  - Due Date: Date/time format
+  - Priority: Low, Medium, High
+  - Status: Incomplete, In Progress, Completed
+
+- **Data Persistence**
+  - Tasks stored in Supabase PostgreSQL database
+
+### Bonus Features ✅
+- **Search**: Search tasks by keyword (title/description)
+- **Sort**: Sort tasks by title, due date, priority, status, or creation date
+- **Statistics**: Display task statistics including:
+  - Total number of tasks
+  - Number of completed tasks
+  - Number of tasks due soon
+- **Export/Import**: Export tasks to JSON and import tasks from JSON
+- **Modern UI**: Clean, responsive interface using Shadcn UI, Radix UI, and Tailwind CSS
+
+## Tech Stack
+
+### Frontend
+- **Next.js 14**: React framework with App Router
+- **TypeScript**: For type safety
+- **Shadcn UI**: Component library
+- **Radix UI**: Accessible UI primitives
+- **Tailwind CSS**: Utility-first CSS framework
+
+### Backend
+- **Next.js API Routes**: Server-side API endpoints
+- **Supabase**: Backend as a Service (BaaS) with PostgreSQL database
+
+## Getting Started
 
 ### Prerequisites
-
 - Node.js 18+ and npm
 - A Supabase account
 
@@ -48,15 +86,6 @@ A Next.js application for managing tasks with Supabase as the database.
    ```
 8. Open [http://localhost:3000](http://localhost:3000) in your browser
 
-### Deployment to Vercel
-
-1. Push your code to a GitHub repository
-2. Connect your repository to Vercel
-3. Add the following environment variables in your Vercel project settings:
-   - `NEXT_PUBLIC_SUPABASE_URL`: Your Supabase URL
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Your Supabase anon key
-4. Deploy your application
-
 ## Database Schema
 
 The application uses a single table called `tasks` with the following schema:
@@ -67,4 +96,10 @@ The application uses a single table called `tasks` with the following schema:
 - `due_date`: Timestamp with time zone
 - `priority`: Text (Enum: 'Low', 'Medium', 'High')
 - `status`: Text (Enum: 'Incomplete', 'In Progress', 'Completed')
-- `created_at`: Timestamp with time zone (Default: NOW()) 
+- `created_at`: Timestamp with time zone (Default: NOW())
+
+## Credits
+
+- UI components from [Shadcn UI](https://ui.shadcn.com/)
+- Icons from [Lucide Icons](https://lucide.dev/)
+- Date formatting with [date-fns](https://date-fns.org/) 
