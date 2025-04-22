@@ -4,9 +4,9 @@ import TaskStatistics from "@/components/task-stats"
 import TaskImportExport from "@/components/task-import-export"
 import { Toaster } from "@/components/ui/toaster"
 
-export default function Home() {
-  const tasks = getFilteredTasks()
-  const stats = getTaskStats()
+export default async function Home() {
+  const tasks = await getFilteredTasks()
+  const stats = await getTaskStats()
 
   return (
     <main className="container mx-auto py-8 px-4">

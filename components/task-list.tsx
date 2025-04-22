@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import type { Task, TaskFilters, SortField, SortDirection } from "@/lib/types"
 import { fetchTasks, removeTask } from "@/app/actions"
 import { Button } from "@/components/ui/button"
@@ -30,6 +30,8 @@ import {
   AlertCircle,
 } from "lucide-react"
 import TaskForm from "./task-form"
+import { toast } from "@/components/ui/use-toast"
+import DeleteAllTasks from "./delete-all-tasks"
 
 type TaskListProps = {
   initialTasks: Task[]
@@ -43,17 +45,45 @@ export default function TaskList({ initialTasks }: TaskListProps) {
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
 
   const refreshTasks = async () => {
-    const { tasks: newTasks } = await fetchTasks(filters)
-    setTasks(newTasks)
+    setIsLoading(true)
+    try {
+      const { tasks: newTasks } = await fetchTasks(filters)
+      setTasks(newTasks || [])
+    } catch (error) {
+      console.error("Error refreshing tasks:", error)
+      toast({
+        title: "Error",
+        description: "Failed to refresh tasks",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
+
+  // Refresh tasks when filters change
+  useEffect(() => {
+    refreshTasks()
+  }, [filters])
+
+  // Listen for task update events
+  useEffect(() => {
+    const handleTaskUpdate = () => {
+      refreshTasks()
+    }
+
+    window.addEventListener("taskUpdate", handleTaskUpdate)
+    return () => {
+      window.removeEventListener("taskUpdate", handleTaskUpdate)
+    }
+  }, [])
 
   const handleSearch = async () => {
     const newFilters = { ...filters, search: searchTerm }
     setFilters(newFilters)
-    const { tasks: newTasks } = await fetchTasks(newFilters)
-    setTasks(newTasks)
   }
 
   const handleSort = async (field: SortField) => {
@@ -67,14 +97,29 @@ export default function TaskList({ initialTasks }: TaskListProps) {
 
     const newFilters = { ...filters, sortBy: field, sortDirection: direction }
     setFilters(newFilters)
-    const { tasks: newTasks } = await fetchTasks(newFilters)
-    setTasks(newTasks)
   }
 
   const handleDelete = async (id: string) => {
     if (confirm("Are you sure you want to delete this task?")) {
-      await removeTask(id)
-      refreshTasks()
+      try {
+        const { success } = await removeTask(id)
+        if (success) {
+          toast({
+            title: "Task deleted",
+            description: "The task has been successfully deleted.",
+          })
+          refreshTasks()
+        } else {
+          throw new Error("Failed to delete task")
+        }
+      } catch (error) {
+        console.error("Error deleting task:", error)
+        toast({
+          title: "Error",
+          description: "Failed to delete the task",
+          variant: "destructive",
+        })
+      }
     }
   }
 
@@ -152,6 +197,8 @@ export default function TaskList({ initialTasks }: TaskListProps) {
             </DropdownMenuContent>
           </DropdownMenu>
 
+          <DeleteAllTasks />
+
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button>Add Task</Button>
@@ -171,7 +218,11 @@ export default function TaskList({ initialTasks }: TaskListProps) {
         </div>
       </div>
 
-      {tasks.length === 0 ? (
+      {isLoading ? (
+        <div className="text-center py-12 bg-gray-50 rounded-lg">
+          <p className="text-gray-500">Loading tasks...</p>
+        </div>
+      ) : tasks.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-lg">
           <p className="text-gray-500">No tasks found. Create a new task to get started!</p>
         </div>

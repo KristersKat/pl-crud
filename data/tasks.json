@@ -1,18 +1,9 @@
 [
   {
-    "title": "Hello",
-    "description": "say hello",
-    "due_date": "2025-04-22T21:00:00.000Z",
-    "priority": "High",
-    "status": "Incomplete",
-    "id": "1745338368339",
-    "created_at": "2025-04-22T16:12:48.339Z"
-  },
-  {
     "title": "Start",
-    "description": "Start project",
+    "description": "Start the project",
     "due_date": "2025-04-22T16:12:55.295Z",
-    "priority": "Medium",
+    "priority": "High",
     "status": "In Progress",
     "id": "1745338386715",
     "created_at": "2025-04-22T16:13:06.715Z"

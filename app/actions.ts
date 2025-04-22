@@ -11,6 +11,7 @@ import {
   importTasksFromJSON,
 } from "@/lib/tasks"
 import type { TaskFilters } from "@/lib/types"
+import { supabase } from "@/lib/supabase"
 
 export async function addTask(formData: FormData) {
   const title = formData.get("title") as string
@@ -23,16 +24,21 @@ export async function addTask(formData: FormData) {
     return { error: "Missing required fields" }
   }
 
-  const task = createTask({
-    title,
-    description,
-    due_date,
-    priority,
-    status,
-  })
+  try {
+    const task = await createTask({
+      title,
+      description,
+      due_date,
+      priority,
+      status,
+    })
 
-  revalidatePath("/")
-  return { success: true, task }
+    revalidatePath("/")
+    return { success: true, task }
+  } catch (error) {
+    console.error("Error creating task:", error)
+    return { error: "Failed to create task" }
+  }
 }
 
 export async function editTask(id: string, formData: FormData) {
@@ -46,43 +52,102 @@ export async function editTask(id: string, formData: FormData) {
     return { error: "Missing required fields" }
   }
 
-  const updatedTask = updateTask(id, {
-    title,
-    description,
-    due_date,
-    priority,
-    status,
-  })
+  try {
+    const updatedTask = await updateTask(id, {
+      title,
+      description,
+      due_date,
+      priority,
+      status,
+    })
 
-  revalidatePath("/")
-  return { success: !!updatedTask, task: updatedTask }
+    revalidatePath("/")
+    return { success: !!updatedTask, task: updatedTask }
+  } catch (error) {
+    console.error("Error updating task:", error)
+    return { error: "Failed to update task" }
+  }
 }
 
 export async function removeTask(id: string) {
-  const success = deleteTask(id)
-  revalidatePath("/")
-  return { success }
+  try {
+    const { error } = await supabase
+      .from("tasks")
+      .delete()
+      .eq("id", id)
+
+    if (error) throw error
+
+    revalidatePath("/")
+    return { success: true }
+  } catch (error) {
+    console.error("Error deleting task:", error)
+    return { success: false, error: "Failed to delete task" }
+  }
+}
+
+export async function deleteAllTasks() {
+  try {
+    const { error } = await supabase
+      .from("tasks")
+      .delete()
+      .neq("id", "dummy") // This ensures we delete all tasks
+
+    if (error) throw error
+
+    revalidatePath("/")
+    return { success: true }
+  } catch (error) {
+    console.error("Error deleting all tasks:", error)
+    return { success: false, error: "Failed to delete all tasks" }
+  }
 }
 
 export async function fetchTasks(filters: TaskFilters = {}) {
-  const tasks = getFilteredTasks(filters)
-  return { tasks }
+  try {
+    const tasks = await getFilteredTasks(filters)
+    return { tasks }
+  } catch (error) {
+    console.error("Error fetching tasks:", error)
+    return { tasks: [] }
+  }
 }
 
 export async function fetchStats() {
-  const stats = getTaskStats()
-  return { stats }
+  try {
+    const stats = await getTaskStats()
+    return { stats }
+  } catch (error) {
+    console.error("Error fetching stats:", error)
+    return { 
+      stats: {
+        totalTasks: 0,
+        completedTasks: 0,
+        dueSoonTasks: 0
+      } 
+    }
+  }
 }
 
 export async function exportTasks() {
-  const jsonData = exportTasksToJSON()
-  return { jsonData }
+  try {
+    const jsonData = await exportTasksToJSON()
+    return { jsonData }
+  } catch (error) {
+    console.error("Error exporting tasks:", error)
+    return { jsonData: "[]" }
+  }
 }
 
 export async function importTasks(jsonData: string) {
-  const success = importTasksFromJSON(jsonData)
-  if (success) {
-    revalidatePath("/")
+  try {
+    const success = await importTasksFromJSON(jsonData)
+    if (success) {
+      revalidatePath("/")
+    }
+    return { success }
+  } catch (error) {
+    console.error("Error importing tasks:", error)
+    return { success: false }
   }
-  return { success }
 }

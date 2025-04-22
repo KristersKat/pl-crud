@@ -24,4 +24,6 @@ export interface TaskFilters {
   search?: string
   sortBy?: SortField
   sortDirection?: SortDirection
+  status?: Status
+  priority?: Priority
 }

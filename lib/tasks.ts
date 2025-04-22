@@ -1,161 +1,207 @@
-import fs from "fs"
-import path from "path"
 import type { Task, TaskStats, TaskFilters, Priority, Status } from "./types"
+import { supabase, handleSupabaseError } from "./supabase"
 
-// File path for storing tasks
-const DATA_FILE_PATH = path.join(process.cwd(), "data", "tasks.json")
-
-// Ensure the data directory exists
-const ensureDataDir = () => {
-  const dir = path.dirname(DATA_FILE_PATH)
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true })
-  }
-  if (!fs.existsSync(DATA_FILE_PATH)) {
-    fs.writeFileSync(DATA_FILE_PATH, JSON.stringify([]))
-  }
-}
-
-// Read tasks from file
-export const getTasks = (): Task[] => {
-  ensureDataDir()
+// Get all tasks from Supabase
+export const getTasks = async (): Promise<Task[]> => {
   try {
-    const data = fs.readFileSync(DATA_FILE_PATH, "utf8")
-    return JSON.parse(data)
+    const { data, error } = await supabase
+      .from('tasks')
+      .select('*')
+      .order('created_at', { ascending: false })
+    
+    if (error) throw error
+    return data || []
   } catch (error) {
-    console.error("Error reading tasks:", error)
+    handleSupabaseError(error)
     return []
   }
 }
 
-// Write tasks to file
-export const saveTasks = (tasks: Task[]): void => {
-  ensureDataDir()
-  try {
-    fs.writeFileSync(DATA_FILE_PATH, JSON.stringify(tasks, null, 2))
-  } catch (error) {
-    console.error("Error saving tasks:", error)
-  }
-}
-
 // Get a single task by ID
-export const getTaskById = (id: string): Task | undefined => {
-  const tasks = getTasks()
-  return tasks.find((task) => task.id === id)
+export const getTaskById = async (id: string): Promise<Task | undefined> => {
+  try {
+    const { data, error } = await supabase
+      .from('tasks')
+      .select('*')
+      .eq('id', id)
+      .single()
+    
+    if (error) throw error
+    return data
+  } catch (error) {
+    handleSupabaseError(error)
+    return undefined
+  }
 }
 
 // Create a new task
-export const createTask = (task: Omit<Task, "id" | "created_at">): Task => {
-  const tasks = getTasks()
-  const newTask: Task = {
-    ...task,
-    id: Date.now().toString(),
-    created_at: new Date().toISOString(),
-  }
+export const createTask = async (task: Omit<Task, "id" | "created_at">): Promise<Task> => {
+  try {
+    const newTask = {
+      ...task,
+      id: Date.now().toString(),
+      created_at: new Date().toISOString(),
+    }
 
-  tasks.push(newTask)
-  saveTasks(tasks)
-  return newTask
+    const { data, error } = await supabase
+      .from('tasks')
+      .insert(newTask)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
+  } catch (error) {
+    handleSupabaseError(error)
+    throw error
+  }
 }
 
 // Update an existing task
-export const updateTask = (id: string, updatedTask: Partial<Task>): Task | null => {
-  const tasks = getTasks()
-  const index = tasks.findIndex((task) => task.id === id)
-
-  if (index === -1) return null
-
-  tasks[index] = { ...tasks[index], ...updatedTask }
-  saveTasks(tasks)
-  return tasks[index]
+export const updateTask = async (id: string, updatedTask: Partial<Task>): Promise<Task | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('tasks')
+      .update(updatedTask)
+      .eq('id', id)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
+  } catch (error) {
+    handleSupabaseError(error)
+    return null
+  }
 }
 
 // Delete a task
-export const deleteTask = (id: string): boolean => {
-  const tasks = getTasks()
-  const filteredTasks = tasks.filter((task) => task.id !== id)
-
-  if (filteredTasks.length === tasks.length) return false
-
-  saveTasks(filteredTasks)
-  return true
+export const deleteTask = async (id: string): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('tasks')
+      .delete()
+      .eq('id', id)
+    
+    if (error) throw error
+    return true
+  } catch (error) {
+    handleSupabaseError(error)
+    return false
+  }
 }
 
 // Filter and sort tasks
-export const getFilteredTasks = (filters: TaskFilters = {}): Task[] => {
-  let tasks = getTasks()
-
-  // Apply search filter
-  if (filters.search) {
-    const searchTerm = filters.search.toLowerCase()
-    tasks = tasks.filter(
-      (task) => task.title.toLowerCase().includes(searchTerm) || task.description.toLowerCase().includes(searchTerm),
-    )
+export const getFilteredTasks = async (filters: TaskFilters = {}): Promise<Task[]> => {
+  try {
+    let query = supabase.from('tasks').select('*')
+    
+    // Apply search filter
+    if (filters.search) {
+      const searchTerm = filters.search.toLowerCase()
+      query = query.or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`)
+    }
+    
+    // Apply status filter if provided
+    if (filters.status) {
+      query = query.eq('status', filters.status)
+    }
+    
+    // Apply priority filter if provided
+    if (filters.priority) {
+      query = query.eq('priority', filters.priority)
+    }
+    
+    // Apply sorting
+    if (filters.sortBy) {
+      const direction = filters.sortDirection === 'desc' ? 'desc' : 'asc'
+      query = query.order(filters.sortBy, { ascending: direction === 'asc' })
+    } else {
+      // Default sorting by created_at
+      query = query.order('created_at', { ascending: false })
+    }
+    
+    const { data, error } = await query
+    
+    if (error) throw error
+    return data || []
+  } catch (error) {
+    handleSupabaseError(error)
+    return []
   }
-
-  // Apply sorting
-  if (filters.sortBy) {
-    tasks = [...tasks].sort((a, b) => {
-      let comparison = 0
-
-      switch (filters.sortBy) {
-        case "title":
-          comparison = a.title.localeCompare(b.title)
-          break
-        case "due_date":
-          comparison = new Date(a.due_date).getTime() - new Date(b.due_date).getTime()
-          break
-        case "priority":
-          const priorityOrder: Record<Priority, number> = { Low: 0, Medium: 1, High: 2 }
-          comparison = priorityOrder[a.priority] - priorityOrder[b.priority]
-          break
-        case "status":
-          const statusOrder: Record<Status, number> = { Incomplete: 0, "In Progress": 1, Completed: 2 }
-          comparison = statusOrder[a.status] - statusOrder[b.status]
-          break
-        case "created_at":
-          comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-          break
-      }
-
-      return filters.sortDirection === "desc" ? -comparison : comparison
-    })
-  }
-
-  return tasks
 }
 
 // Get task statistics
-export const getTaskStats = (): TaskStats => {
-  const tasks = getTasks()
-  const now = new Date()
-  const oneWeekFromNow = new Date()
-  oneWeekFromNow.setDate(now.getDate() + 7)
-
-  return {
-    totalTasks: tasks.length,
-    completedTasks: tasks.filter((task) => task.status === "Completed").length,
-    dueSoonTasks: tasks.filter((task) => {
-      const dueDate = new Date(task.due_date)
-      return dueDate >= now && dueDate <= oneWeekFromNow && task.status !== "Completed"
-    }).length,
+export const getTaskStats = async (): Promise<TaskStats> => {
+  try {
+    const { data: tasks, error } = await supabase
+      .from('tasks')
+      .select('*')
+    
+    if (error) throw error
+    
+    const now = new Date()
+    const oneWeekFromNow = new Date()
+    oneWeekFromNow.setDate(now.getDate() + 7)
+    
+    return {
+      totalTasks: tasks.length,
+      completedTasks: tasks.filter((task) => task.status === "Completed").length,
+      dueSoonTasks: tasks.filter((task) => {
+        const dueDate = new Date(task.due_date)
+        return dueDate >= now && dueDate <= oneWeekFromNow && task.status !== "Completed"
+      }).length,
+    }
+  } catch (error) {
+    handleSupabaseError(error)
+    return {
+      totalTasks: 0,
+      completedTasks: 0,
+      dueSoonTasks: 0
+    }
   }
 }
 
 // Export tasks to JSON
-export const exportTasksToJSON = (): string => {
-  const tasks = getTasks()
-  return JSON.stringify(tasks, null, 2)
+export const exportTasksToJSON = async (): Promise<string> => {
+  try {
+    const { data, error } = await supabase
+      .from('tasks')
+      .select('*')
+    
+    if (error) throw error
+    return JSON.stringify(data, null, 2)
+  } catch (error) {
+    handleSupabaseError(error)
+    return '[]'
+  }
 }
 
 // Import tasks from JSON
-export const importTasksFromJSON = (jsonData: string): boolean => {
+export const importTasksFromJSON = async (jsonData: string): Promise<boolean> => {
   try {
     const tasks = JSON.parse(jsonData) as Task[]
-    saveTasks(tasks)
+    
+    // Delete all existing tasks first
+    const { error: deleteError } = await supabase
+      .from('tasks')
+      .delete()
+      .neq('id', 'dummy') // This ensures all records are deleted
+    
+    if (deleteError) throw deleteError
+    
+    // Insert new tasks
+    if (tasks.length > 0) {
+      const { error: insertError } = await supabase
+        .from('tasks')
+        .insert(tasks)
+      
+      if (insertError) throw insertError
+    }
+    
     return true
   } catch (error) {
-    console.error("Error importing tasks:", error)
+    handleSupabaseError(error)
     return false
   }
 }

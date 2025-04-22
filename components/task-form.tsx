@@ -17,6 +17,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { CalendarIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { dispatchTaskUpdate } from "./task-import-export"
 
 const formSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -75,6 +76,10 @@ export default function TaskForm({ task, onSuccess }: TaskFormProps) {
 
       form.reset()
       router.refresh()
+      
+      // Dispatch the task update event to refresh tasks and stats
+      dispatchTaskUpdate()
+      
       if (onSuccess) onSuccess()
     } catch (error) {
       console.error("Error submitting form:", error)

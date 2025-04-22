@@ -8,6 +8,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Download, Upload, FileJson } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
 
+// Create a custom event for task updates
+const TASK_UPDATE_EVENT = "taskUpdate"
+
+// Function to dispatch the task update event
+export function dispatchTaskUpdate() {
+  const event = new CustomEvent(TASK_UPDATE_EVENT)
+  window.dispatchEvent(event)
+}
+
 export default function TaskImportExport() {
   const [importData, setImportData] = useState("")
   const [isImporting, setIsImporting] = useState(false)
@@ -58,6 +67,9 @@ export default function TaskImportExport() {
           title: "Import Successful",
           description: "Your tasks have been imported successfully.",
         })
+        
+        // Dispatch the task update event to refresh tasks and stats
+        dispatchTaskUpdate()
       } else {
         throw new Error("Import failed")
       }
@@ -99,13 +111,13 @@ export default function TaskImportExport() {
               placeholder="Paste your JSON data here..."
               value={importData}
               onChange={(e) => setImportData(e.target.value)}
-              className="min-h-[200px]"
+              className="min-h-[200px] font-mono text-sm"
             />
             <div className="flex justify-end gap-2">
               <DialogClose asChild>
                 <Button variant="outline">Cancel</Button>
               </DialogClose>
-              <Button onClick={handleImport} disabled={!importData.trim() || isImporting}>
+              <Button onClick={handleImport} disabled={isImporting || !importData.trim()}>
                 {isImporting ? "Importing..." : "Import"}
               </Button>
             </div>
