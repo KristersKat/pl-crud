@@ -1,3 +1,10 @@
+/**
+ * Task List Component
+ * 
+ * This component displays a list of tasks with filtering, sorting, and CRUD operations.
+ * It includes search functionality, sorting options, and the ability to add, edit, and delete tasks.
+ */
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -33,11 +40,22 @@ import TaskForm from "./task-form"
 import { toast } from "@/components/ui/use-toast"
 import DeleteAllTasks from "./delete-all-tasks"
 
+/**
+ * Props for the TaskList component
+ */
 type TaskListProps = {
-  initialTasks: Task[]
+  initialTasks: Task[] // Initial tasks to display
 }
 
+/**
+ * TaskList Component
+ * 
+ * Displays a list of tasks with filtering, sorting, and CRUD operations.
+ * 
+ * initialTasks - Initial tasks to display
+ */
 export default function TaskList({ initialTasks }: TaskListProps) {
+  // State for tasks and UI controls
   const [tasks, setTasks] = useState<Task[]>(initialTasks)
   const [filters, setFilters] = useState<TaskFilters>({})
   const [searchTerm, setSearchTerm] = useState("")
@@ -47,13 +65,18 @@ export default function TaskList({ initialTasks }: TaskListProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
+  /**
+   * Refreshes the task list by fetching tasks with current filters
+   */
   const refreshTasks = async () => {
     setIsLoading(true)
     try {
+      // Fetch tasks with current filters from the server
       const { tasks: newTasks } = await fetchTasks(filters)
       setTasks(newTasks || [])
     } catch (error) {
       console.error("Error refreshing tasks:", error)
+      // Show error toast notification
       toast({
         title: "Error",
         description: "Failed to refresh tasks",
@@ -69,51 +92,76 @@ export default function TaskList({ initialTasks }: TaskListProps) {
     refreshTasks()
   }, [filters])
 
-  // Listen for task update events
+  // Listen for task update events from other components
   useEffect(() => {
     const handleTaskUpdate = () => {
       refreshTasks()
     }
 
+    // Add event listener for task updates
     window.addEventListener("taskUpdate", handleTaskUpdate)
+    // Clean up event listener on component unmount
     return () => {
       window.removeEventListener("taskUpdate", handleTaskUpdate)
     }
   }, [])
 
+  /**
+   * Handles the search action
+   * Updates filters with the current search term and refreshes tasks
+   */
   const handleSearch = async () => {
     const newFilters = { ...filters, search: searchTerm }
     setFilters(newFilters)
   }
 
+  /**
+   * Handles the sort action
+   * Toggles sort direction if the same field is selected again
+   * 
+   * field - The field to sort by
+   */
   const handleSort = async (field: SortField) => {
+    // Determine sort direction (toggle if same field)
     let direction: SortDirection = "asc"
     if (sortBy === field) {
       direction = sortDirection === "asc" ? "desc" : "asc"
     }
 
+    // Update sort state
     setSortBy(field)
     setSortDirection(direction)
 
+    // Update filters with new sort parameters
     const newFilters = { ...filters, sortBy: field, sortDirection: direction }
     setFilters(newFilters)
   }
 
+  /**
+   * Handles the delete action for a single task
+   * Shows a confirmation dialog and deletes the task if confirmed
+   * 
+   * The ID of the task to delete
+   */
   const handleDelete = async (id: string) => {
     if (confirm("Are you sure you want to delete this task?")) {
       try {
+        // Call the server action to delete the task
         const { success } = await removeTask(id)
         if (success) {
+          // Show success toast notification
           toast({
             title: "Task deleted",
             description: "The task has been successfully deleted.",
           })
+          // Refresh the task list
           refreshTasks()
         } else {
           throw new Error("Failed to delete task")
         }
       } catch (error) {
         console.error("Error deleting task:", error)
+        // Show error toast notification
         toast({
           title: "Error",
           description: "Failed to delete the task",
@@ -123,12 +171,22 @@ export default function TaskList({ initialTasks }: TaskListProps) {
     }
   }
 
+  /**
+   * Handles successful task edit
+   * Resets editing state and refreshes tasks
+   */
   const handleEditSuccess = () => {
     setEditingTask(null)
     setIsDialogOpen(false)
     refreshTasks()
   }
 
+  /**
+   * Returns the appropriate CSS classes for a priority badge
+   * 
+   * priority - The priority level of the task
+   * returns CSS classes for styling the priority badge
+   */
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case "High":
@@ -142,6 +200,12 @@ export default function TaskList({ initialTasks }: TaskListProps) {
     }
   }
 
+  /**
+   * Returns the appropriate icon component for a task status
+   * 
+   * status - The status of the task
+   * returns React component for the status icon
+   */
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "Completed":
@@ -157,7 +221,9 @@ export default function TaskList({ initialTasks }: TaskListProps) {
 
   return (
     <div className="space-y-6">
+      {/* Search and action buttons */}
       <div className="flex flex-col sm:flex-row gap-4">
+        {/* Search input */}
         <div className="relative flex-1">
           <Input
             placeholder="Search tasks..."
@@ -168,7 +234,10 @@ export default function TaskList({ initialTasks }: TaskListProps) {
           />
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
         </div>
+        
+        {/* Action buttons */}
         <div className="flex gap-2">
+          {/* Sort dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="gap-2">
@@ -197,8 +266,10 @@ export default function TaskList({ initialTasks }: TaskListProps) {
             </DropdownMenuContent>
           </DropdownMenu>
 
+          {/* Delete All button */}
           <DeleteAllTasks />
 
+          {/* Add Task dialog */}
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button>Add Task</Button>
@@ -218,6 +289,7 @@ export default function TaskList({ initialTasks }: TaskListProps) {
         </div>
       </div>
 
+      {/* Task list */}
       {isLoading ? (
         <div className="text-center py-12 bg-gray-50 rounded-lg">
           <p className="text-gray-500">Loading tasks...</p>
